@@ -11,7 +11,6 @@ class MediaPipeLandmarks:
         self.cap = cv2.VideoCapture(0)
         self.cap.set(3, self.width)
         self.cap.set(4, self.height)
-        self.running = False
 
     def process_frame(self):
         ret, frame = self.cap.read()
