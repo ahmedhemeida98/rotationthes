@@ -16,20 +16,19 @@ def main():
     landmarks_processor = MediaPipeLandmarks()
     position_queue = Queue()
 
-    def webcam_thread():
+    def landmark_reader_thread():
         while True:
             frame, results = landmarks_processor.process_frame()
             if results and results.multi_hand_landmarks:
                 for hand_landmarks in results.multi_hand_landmarks:
                     tracker.update(hand_landmarks, landmarks_processor.width, landmarks_processor.height, position_queue)
-                    landmarks_processor.drawing_utils.draw_landmarks(frame, hand_landmarks, landmarks_processor.mp_hands.HAND_CONNECTIONS)
             cv2.imshow('Webcam Feed', frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
         landmarks_processor.release()
         cv2.destroyAllWindows()
 
-    def compute_angle_worker():
+    def angle_calculator_thread():
         while True:
             if position_queue.qsize() >= 2:
                 pos1 = position_queue.get()
@@ -41,12 +40,14 @@ def main():
                     angle_diff = np.degrees(current_angle - tracker.last_angle)
                     update_rotation_callback(angle_diff)
                 tracker.last_angle = current_angle
+                position_queue.put(pos2)  # Enqueue pos2 to be used as p1 in the next iteration
 
-    webcam_thread = threading.Thread(target=webcam_thread)
-    worker_thread = threading.Thread(target=compute_angle_worker)
+    # Create and start threads
+    reader_thread = threading.Thread(target=landmark_reader_thread)
+    calculator_thread = threading.Thread(target=angle_calculator_thread)
 
-    webcam_thread.start()
-    worker_thread.start()
+    reader_thread.start()
+    calculator_thread.start()
     gui.run()
 
 if __name__ == "__main__":
